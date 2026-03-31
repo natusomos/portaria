@@ -273,7 +273,7 @@ canvas{display:none;}
       </div>
       <div class="field ac-wrap">
         <div class="field-label">🏢 Empresa / Procedência *</div>
-        <input type="text" id="vEmpresa" placeholder="De onde vem..." autocomplete="off"
+        <input type="text" id="vEmpresa" placeholder="De onde vem..." autocomplete="new-password" name="pg_empresa_visitante"
           oninput="acVEmpresa(this.value)" onfocus="acVEmpresa(this.value)">
         <div class="ac-list" id="acVEmpresaList"></div>
       </div>
@@ -1976,6 +1976,15 @@ document.addEventListener('click', e => {
 });
 
 // ══ INIT ══
+// Limpa campos de formulário para evitar autofill do navegador
+['vNome','vEmpresa','vPlaca','vObs',
+ 'gPlaca','gModelo','gMotorista','gDestino','gGestor',
+ 'acNome','acEmpresa','acMotivo','acAutorizador','acObs',
+ 'cvPlaca','cvModelo','cvMotorista'].forEach(id => {
+  const el = document.getElementById(id);
+  if(el) el.value = '';
+});
+
 initTema();
 if(GIST_ID && GIST_TOKEN){
   syncDot('syncing');
