@@ -268,13 +268,15 @@ canvas{display:none;}
       <div class="field ac-wrap">
         <div class="field-label">👤 Nome do Motorista *</div>
         <input type="text" id="vNome" placeholder="Nome completo..." autocomplete="off"
-          oninput="acVNome(this.value)" onfocus="acVNome(this.value)">
+          oninput="this.dataset.userTyped='1';acVNome(this.value)" onfocus="acVNome(this.value)">
         <div class="ac-list" id="acVNomeList"></div>
       </div>
       <div class="field ac-wrap">
         <div class="field-label">🏢 Empresa / Procedência *</div>
-        <input type="text" id="vEmpresa" placeholder="De onde vem..." autocomplete="new-password" name="pg_empresa_visitante"
-          oninput="acVEmpresa(this.value)" onfocus="acVEmpresa(this.value)">
+        <input type="text" id="vEmpresa" placeholder="De onde vem..."
+          autocomplete="off" readonly
+          onfocus="this.removeAttribute('readonly');acVEmpresa(this.value)"
+          oninput="this.dataset.userTyped='1';acVEmpresa(this.value)">
         <div class="ac-list" id="acVEmpresaList"></div>
       </div>
       <div class="field">
@@ -626,11 +628,11 @@ canvas{display:none;}
     <div id="syncStatusBox" style="margin-bottom:12px;"></div>
     <div class="field">
       <div class="field-label">🔑 Gist ID</div>
-      <input type="text" id="cfgGistId" placeholder="abc123def456..." style="font-size:0.88rem;font-family:var(--fm);">
+      <input type="text" id="cfgGistId" placeholder="abc123def456..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" style="font-size:0.88rem;font-family:var(--fm);">
     </div>
     <div class="field">
       <div class="field-label">🔐 Token GitHub</div>
-      <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxx..." style="font-size:0.88rem;font-family:var(--fm);">
+      <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxx..." autocomplete="new-password" style="font-size:0.88rem;font-family:var(--fm);">
     </div>
     <button class="big-btn btn-accent" id="btnSalvarCfg" onclick="salvarConfig()">💾 Salvar e Conectar</button>
     <button class="big-btn btn-gray" onclick="sincronizarAgora()" style="margin-top:9px;font-size:0.9rem;">🔄 Sincronizar Agora</button>
@@ -979,6 +981,13 @@ async function gistPull(){
 function renderConfig(){
   document.getElementById('cfgGistId').value = GIST_ID;
   document.getElementById('cfgToken').value  = GIST_TOKEN;
+  // Força limpeza de campos de visitante que o Chrome pode ter preenchido com autofill
+  setTimeout(() => {
+    ['vNome','vEmpresa','vPlaca','vObs'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el && el.value && !el.dataset.userTyped) el.value = '';
+    });
+  }, 100);
   const box = document.getElementById('syncStatusBox');
   box.innerHTML = GIST_ID
     ? `<div style="color:var(--green);font-weight:700;font-size:0.88rem;">✅ Gist configurado</div><div style="font-size:0.75rem;color:var(--muted);font-family:var(--fm);margin-top:3px;word-break:break-all;">${GIST_ID}</div>`
@@ -1302,7 +1311,10 @@ function registrarVisitante(){
   showSucEntrada(entry);
 }
 function resetVisitanteForm(){
-  ['vNome','vEmpresa','vPlaca','vObs'].forEach(id => document.getElementById(id).value='');
+  ['vNome','vEmpresa','vPlaca','vObs'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.value=''; delete el.dataset.userTyped; }
+  });
   document.getElementById('vTipo').value = 'Carro';
   document.getElementById('vFotoMotoBlock').innerHTML = '<div class="photo-block-icon">🤳</div><div class="photo-block-lbl">Toque para fotografar</div><div class="photo-block-sub">Motorista ou documento</div>';
   document.getElementById('vFotoVeicBlock').innerHTML = '<div class="photo-block-icon">🚗</div><div class="photo-block-lbl">Toque para fotografar</div><div class="photo-block-sub">Câmera traseira — OCR automático</div>';
