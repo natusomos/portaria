@@ -901,7 +901,7 @@ async function gistPull(){
     const raw = gist.files[GIST_FILE]?.content;
     if(raw){
       const remote = JSON.parse(raw);
-      // Merge visitantes and frota separately
+      // Merge visitantes, frota e acessos por id
       const vMap = {}, fMap = {}, aMap = {};
       VISITANTES.forEach(r => vMap[r.id] = r);
       FROTA.forEach(r => fMap[r.id] = r);
@@ -912,7 +912,12 @@ async function gistPull(){
       VISITANTES = Object.values(vMap).sort((a,b) => b.id - a.id);
       FROTA      = Object.values(fMap).sort((a,b) => b.id - a.id);
       ACESSOS    = Object.values(aMap).sort((a,b) => b.id - a.id);
-      saveVisitantes(); saveFrota(); saveAcessos();
+      // Veículos: merge por placa — remoto prevalece
+      const vfMap = {};
+      VEICULOS_FROTA.forEach(v => vfMap[v.placa] = v);
+      (remote.veiculos || []).forEach(v => vfMap[v.placa] = v);
+      VEICULOS_FROTA = Object.values(vfMap);
+      saveVisitantes(); saveFrota(); saveAcessos(); saveVeiculosFrota();
     }
     syncDot('ok');
   }catch(e){ syncDot('error'); console.warn('Gist pull:', e); }
@@ -925,7 +930,8 @@ async function gistPush(){
     const slim = {
       visitantes: VISITANTES.map(r => ({...r, fotoMotorista: r.fotoMotorista ? '📸' : null, fotoVeiculo: r.fotoVeiculo ? '📸' : null})),
       frota: FROTA,
-      acessos: ACESSOS
+      acessos: ACESSOS,
+      veiculos: VEICULOS_FROTA
     };
     await fetch('https://api.github.com/gists/' + GIST_ID, {
       method: 'PATCH', headers: gistHdrs(),
@@ -968,7 +974,7 @@ async function salvarConfig(){
     btn.textContent = '✅ Conectado!';
     syncDot('ok'); renderConfig();
     await gistPull();
-    renderGestorLista(); renderVigilante(); renderConsulta();
+    renderGestorLista(); renderVigilante(); renderConsulta(); renderCVLista(); renderAcessoAutorizarLista(); renderAcessoVigilante();
     setTimeout(() => { btn.textContent = '💾 Salvar e Conectar'; btn.disabled = false; }, 2000);
   }catch(e){
     btn.textContent = '❌ Erro — verifique os dados'; btn.disabled = false;
@@ -980,14 +986,14 @@ async function salvarConfig(){
 async function sincronizarAgora(){
   if(!GIST_ID || !GIST_TOKEN){ alert('Configure o Gist primeiro.'); return; }
   await gistPull();
-  renderGestorLista(); renderVigilante(); renderConsulta();
+  renderGestorLista(); renderVigilante(); renderConsulta(); renderCVLista(); renderAcessoAutorizarLista(); renderAcessoVigilante();
 }
 
 function limparDados(){
   if(!confirm('Apagar TODOS os dados locais?\n\nOs dados no Gist NÃO serão apagados.')) return;
-  VISITANTES = []; FROTA = [];
-  saveVisitantes(); saveFrota();
-  renderGestorLista(); renderVigilante(); renderConsulta();
+  VISITANTES = []; FROTA = []; ACESSOS = []; VEICULOS_FROTA = [];
+  saveVisitantes(); saveFrota(); saveAcessos(); saveVeiculosFrota();
+  renderGestorLista(); renderVigilante(); renderConsulta(); renderCVLista(); renderAcessoAutorizarLista(); renderAcessoVigilante();
   alert('Dados locais apagados.');
 }
 
@@ -1915,7 +1921,7 @@ document.addEventListener('click', e => {
 initTema();
 if(GIST_ID && GIST_TOKEN){
   syncDot('syncing');
-  gistPull().then(() => { renderGestorLista(); renderVigilante(); renderConsulta(); });
+  gistPull().then(() => { renderGestorLista(); renderVigilante(); renderConsulta(); renderCVLista(); renderAcessoAutorizarLista(); renderAcessoVigilante(); });
 } else {
   syncDot('offline');
 }
