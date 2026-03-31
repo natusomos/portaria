@@ -1912,20 +1912,6 @@ document.addEventListener('click', e => {
 });
 
 // ══ INIT ══
-// Demo data (only if empty)
-if(!VISITANTES.length && !FROTA.length){
-  const t = Date.now();
-  VISITANTES = [
-    {id:t-2, tipo_registro:'visitante', nome:'Carlos Souza', empresa:'Distribuidora ABC', placa:'BRA-2E19', tipo:'Caminhão', obs:'Entrega', fotoMotorista:null, fotoVeiculo:null, tsEntrada:new Date(t-3600000).toISOString()},
-    {id:t-1, tipo_registro:'visitante', nome:'Maria Fernanda', empresa:'Correios', placa:'MNO-3456', tipo:'Van', obs:'', fotoMotorista:null, fotoVeiculo:null, tsEntrada:new Date(t-7200000).toISOString()},
-  ];
-  FROTA = [
-    {id:t-4, tipo_registro:'frota', placa:'EMP-0001', motorista:'José da Silva', destino:'Fornecedor SP', tsPrevSaida:new Date(t+3600000).toISOString(), gestor:'Ana Gestora', tsAutorizacao:new Date(t-1800000).toISOString(), tsSaidaReal:null, tsRetorno:null, status:'pendente'},
-    {id:t-3, tipo_registro:'frota', placa:'EMP-0002', motorista:'Pedro Alves', destino:'Cliente RJ', tsPrevSaida:new Date(t-3600000).toISOString(), gestor:'João Gestor', tsAutorizacao:new Date(t-7200000).toISOString(), tsSaidaReal:new Date(t-3600000).toISOString(), tsRetorno:null, status:'fora'},
-  ];
-  saveVisitantes(); saveFrota();
-}
-
 initTema();
 if(GIST_ID && GIST_TOKEN){
   syncDot('syncing');
