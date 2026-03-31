@@ -634,6 +634,8 @@ canvas{display:none;}
     </div>
     <button class="big-btn btn-accent" id="btnSalvarCfg" onclick="salvarConfig()">💾 Salvar e Conectar</button>
     <button class="big-btn btn-gray" onclick="sincronizarAgora()" style="margin-top:9px;font-size:0.9rem;">🔄 Sincronizar Agora</button>
+    <button class="big-btn btn-gray" onclick="diagnosticarGist()" style="margin-top:9px;font-size:0.9rem;">🔍 Ver o que está no Gist</button>
+    <div id="diagBox" style="display:none;margin-top:12px;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:12px;font-family:var(--fm);font-size:0.75rem;color:var(--muted);line-height:1.8;word-break:break-all;"></div>
   </div>
 
   <!-- PERIGO -->
@@ -891,55 +893,83 @@ function syncDot(state){
 
 function gistHdrs(){ return {'Authorization':'token '+GIST_TOKEN,'Content-Type':'application/json','Accept':'application/vnd.github+json'}; }
 
-async function gistPull(){
-  if(!GIST_ID || !GIST_TOKEN) return;
-  syncDot('syncing');
-  try{
-    const res = await fetch('https://api.github.com/gists/' + GIST_ID, {headers: gistHdrs()});
-    if(!res.ok) throw new Error(res.status);
-    const gist = await res.json();
-    const raw = gist.files[GIST_FILE]?.content;
-    if(raw){
-      const remote = JSON.parse(raw);
-      // Merge visitantes, frota e acessos por id
-      const vMap = {}, fMap = {}, aMap = {};
-      VISITANTES.forEach(r => vMap[r.id] = r);
-      FROTA.forEach(r => fMap[r.id] = r);
-      ACESSOS.forEach(r => aMap[r.id] = r);
-      (remote.visitantes || []).forEach(r => vMap[r.id] = r);
-      (remote.frota || []).forEach(r => fMap[r.id] = r);
-      (remote.acessos || []).forEach(r => aMap[r.id] = r);
-      VISITANTES = Object.values(vMap).sort((a,b) => b.id - a.id);
-      FROTA      = Object.values(fMap).sort((a,b) => b.id - a.id);
-      ACESSOS    = Object.values(aMap).sort((a,b) => b.id - a.id);
-      // Veículos: merge por placa — remoto prevalece
-      const vfMap = {};
-      VEICULOS_FROTA.forEach(v => vfMap[v.placa] = v);
-      (remote.veiculos || []).forEach(v => vfMap[v.placa] = v);
-      VEICULOS_FROTA = Object.values(vfMap);
-      saveVisitantes(); saveFrota(); saveAcessos(); saveVeiculosFrota();
-    }
-    syncDot('ok');
-  }catch(e){ syncDot('error'); console.warn('Gist pull:', e); }
+function dadosParaGist(){
+  return {
+    visitantes: VISITANTES.map(r => ({...r, fotoMotorista: r.fotoMotorista ? '📸' : null, fotoVeiculo: r.fotoVeiculo ? '📸' : null})),
+    frota:    FROTA,
+    acessos:  ACESSOS,
+    veiculos: VEICULOS_FROTA
+  };
 }
 
 async function gistPush(){
-  if(!GIST_ID || !GIST_TOKEN || isSyncing) return;
-  isSyncing = true; syncDot('syncing');
+  if(!GIST_ID || !GIST_TOKEN){ syncDot('offline'); return; }
+  if(isSyncing) return;
+  isSyncing = true;
+  syncDot('syncing');
   try{
-    const slim = {
-      visitantes: VISITANTES.map(r => ({...r, fotoMotorista: r.fotoMotorista ? '📸' : null, fotoVeiculo: r.fotoVeiculo ? '📸' : null})),
-      frota: FROTA,
-      acessos: ACESSOS,
-      veiculos: VEICULOS_FROTA
-    };
-    await fetch('https://api.github.com/gists/' + GIST_ID, {
-      method: 'PATCH', headers: gistHdrs(),
-      body: JSON.stringify({files:{[GIST_FILE]:{content: JSON.stringify(slim, null, 2)}}})
+    const body = JSON.stringify({ files:{ [GIST_FILE]:{ content: JSON.stringify(dadosParaGist(), null, 2) } } });
+    const res = await fetch('https://api.github.com/gists/' + GIST_ID, {
+      method: 'PATCH', headers: gistHdrs(), body
     });
+    if(!res.ok){
+      const err = await res.text();
+      console.error('Gist push erro HTTP', res.status, err);
+      syncDot('error'); return;
+    }
     syncDot('ok');
-  }catch(e){ syncDot('error'); console.warn('Gist push:', e); }
-  finally{ isSyncing = false; }
+  }catch(e){
+    console.error('Gist push exception:', e);
+    syncDot('error');
+  }finally{
+    isSyncing = false;
+  }
+}
+
+async function gistPull(){
+  if(!GIST_ID || !GIST_TOKEN){ syncDot('offline'); return; }
+  syncDot('syncing');
+  try{
+    const res = await fetch('https://api.github.com/gists/' + GIST_ID, {
+      headers: gistHdrs(),
+      // força bypass de cache
+      cache: 'no-store'
+    });
+    if(!res.ok){
+      console.error('Gist pull erro HTTP', res.status);
+      syncDot('error'); return;
+    }
+    const gist = await res.json();
+    const raw = gist.files[GIST_FILE]?.content;
+    if(!raw){ console.warn('Gist: arquivo vazio ou não encontrado'); syncDot('ok'); return; }
+
+    const remote = JSON.parse(raw);
+    console.log('Gist pull OK — veiculos no remoto:', (remote.veiculos||[]).length);
+
+    // Merge por id
+    const vMap = {}, fMap = {}, aMap = {};
+    VISITANTES.forEach(r => vMap[r.id] = r);
+    FROTA.forEach(r => fMap[r.id] = r);
+    ACESSOS.forEach(r => aMap[r.id] = r);
+    (remote.visitantes || []).forEach(r => vMap[r.id] = r);
+    (remote.frota      || []).forEach(r => fMap[r.id] = r);
+    (remote.acessos    || []).forEach(r => aMap[r.id] = r);
+    VISITANTES = Object.values(vMap).sort((a,b) => b.id - a.id);
+    FROTA      = Object.values(fMap).sort((a,b) => b.id - a.id);
+    ACESSOS    = Object.values(aMap).sort((a,b) => b.id - a.id);
+
+    // Merge veículos por placa — remoto prevalece
+    const vfMap = {};
+    VEICULOS_FROTA.forEach(v => vfMap[v.placa] = v);
+    (remote.veiculos || []).forEach(v => vfMap[v.placa] = v);
+    VEICULOS_FROTA = Object.values(vfMap);
+
+    saveVisitantes(); saveFrota(); saveAcessos(); saveVeiculosFrota();
+    syncDot('ok');
+  }catch(e){
+    console.error('Gist pull exception:', e);
+    syncDot('error');
+  }
 }
 
 // ══ CONFIG ══
@@ -980,6 +1010,31 @@ async function salvarConfig(){
     btn.textContent = '❌ Erro — verifique os dados'; btn.disabled = false;
     syncDot('error');
     setTimeout(() => { btn.textContent = '💾 Salvar e Conectar'; }, 3000);
+  }
+}
+
+async function diagnosticarGist(){
+  const box = document.getElementById('diagBox');
+  box.style.display = 'block';
+  box.innerHTML = '🔄 Consultando Gist...';
+  if(!GIST_ID || !GIST_TOKEN){ box.innerHTML = '❌ Gist não configurado.'; return; }
+  try{
+    const res = await fetch('https://api.github.com/gists/' + GIST_ID, { headers: gistHdrs(), cache:'no-store' });
+    if(!res.ok){ box.innerHTML = '❌ Erro HTTP ' + res.status; return; }
+    const gist = await res.json();
+    const raw = gist.files[GIST_FILE]?.content;
+    if(!raw){ box.innerHTML = '⚠️ Arquivo portaria_db.json não encontrado no Gist.'; return; }
+    const data = JSON.parse(raw);
+    box.innerHTML =
+      `<div style="color:var(--green);font-weight:700;margin-bottom:6px;">✅ Gist acessado com sucesso</div>` +
+      `<div>👤 Visitantes: <strong style="color:var(--text)">${(data.visitantes||[]).length}</strong></div>` +
+      `<div>🚗 Frota: <strong style="color:var(--text)">${(data.frota||[]).length}</strong></div>` +
+      `<div>🪪 Acessos: <strong style="color:var(--text)">${(data.acessos||[]).length}</strong></div>` +
+      `<div>🚘 Veículos cadastrados: <strong style="color:var(--accent)">${(data.veiculos||[]).length}</strong></div>` +
+      (data.veiculos?.length ? `<div style="margin-top:6px;color:var(--muted);">${data.veiculos.map(v=>v.placa+' · '+v.modelo).join('<br>')}</div>` : '') +
+      `<div style="margin-top:6px;font-size:0.68rem;color:var(--muted);">Atualizado: ${new Date(gist.updated_at).toLocaleString('pt-BR')}</div>`;
+  }catch(e){
+    box.innerHTML = '❌ Erro: ' + e.message;
   }
 }
 
