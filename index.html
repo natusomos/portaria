@@ -777,6 +777,9 @@ function showPanel(id){
   document.getElementById('panel-' + id).classList.add('active');
   const nb = document.getElementById('nav-' + id);
   if(nb) nb.classList.add('active');
+  // Dismiss any visible toast
+  const t = document.getElementById('toastEl');
+  if(t){ clearTimeout(toastTimer); t.style.transform = 'translateX(-50%) translateY(120px)'; }
   if(id === 'frota')   { renderGestorLista(); renderVigilante(); }
   if(id === 'acesso')  { renderAcessoAutorizarLista(); renderAcessoVigilante(); }
   if(id === 'consulta') renderConsulta();
@@ -1969,8 +1972,9 @@ let toastTimer;
 function toast(msg, type='ok'){
   let el = document.getElementById('toastEl');
   if(!el){
-    el = document.createElement('div'); el.id = 'toastEl';
-    el.style.cssText = 'position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(60px);font-weight:700;font-size:0.85rem;padding:10px 18px;border-radius:10px;z-index:999;transition:transform .3s;white-space:nowrap;';
+    el = document.createElement('div');
+    el.id = 'toastEl';
+    el.style.cssText = 'position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(120px);font-weight:700;font-size:0.85rem;padding:10px 18px;border-radius:10px;z-index:9999;transition:transform .3s ease;white-space:nowrap;pointer-events:none;';
     document.body.appendChild(el);
   }
   const colors = { ok:'var(--green)', warn:'var(--warn)', danger:'var(--red)', info:'var(--accent)' };
@@ -1978,9 +1982,14 @@ function toast(msg, type='ok'){
   el.style.background = colors[type] || colors.ok;
   el.style.color = fgColors[type] || '#000';
   el.textContent = msg;
+  // Force reflow before animating in
+  el.style.transform = 'translateX(-50%) translateY(120px)';
+  void el.offsetHeight;
   el.style.transform = 'translateX(-50%) translateY(0)';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.style.transform = 'translateX(-50%) translateY(60px)'; }, 2800);
+  toastTimer = setTimeout(() => {
+    el.style.transform = 'translateX(-50%) translateY(120px)';
+  }, 2800);
 }
 
 document.addEventListener('click', e => {
