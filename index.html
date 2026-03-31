@@ -634,6 +634,7 @@ canvas{display:none;}
     </div>
     <button class="big-btn btn-accent" id="btnSalvarCfg" onclick="salvarConfig()">💾 Salvar e Conectar</button>
     <button class="big-btn btn-gray" onclick="sincronizarAgora()" style="margin-top:9px;font-size:0.9rem;">🔄 Sincronizar Agora</button>
+    <button class="big-btn btn-gray" onclick="forcePush()" style="margin-top:9px;font-size:0.9rem;">📤 Forçar Envio ao Gist</button>
     <button class="big-btn btn-gray" onclick="diagnosticarGist()" style="margin-top:9px;font-size:0.9rem;">🔍 Ver o que está no Gist</button>
     <div id="diagBox" style="display:none;margin-top:12px;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:12px;font-family:var(--fm);font-size:0.75rem;color:var(--muted);line-height:1.8;word-break:break-all;"></div>
   </div>
@@ -810,6 +811,7 @@ function salvarVeiculo(){
     toast('✅ Veículo cadastrado!');
   }
   saveVeiculosFrota();
+  gistPush();
 
   // Limpa form
   ['cvPlaca','cvModelo','cvMotorista'].forEach(id => document.getElementById(id).value='');
@@ -853,6 +855,7 @@ function excluirVeiculo(placa){
   if(!confirm(`Excluir o veículo ${placa} do cadastro?`)) return;
   VEICULOS_FROTA = VEICULOS_FROTA.filter(v => v.placa !== placa);
   saveVeiculosFrota();
+  gistPush();
   renderCVLista();
   toast('🗑 Veículo removido.');
 }
